@@ -5,6 +5,10 @@ from shop.serializers import CategorySerializer, ProductSerializer
 from rest_framework.permissions import IsAuthenticated
 from .decorators import seller_required, buyer_required
 from rest_framework.generics import RetrieveAPIView
+from .models import SellerFollow
+from account.models import Notification
+from rest_framework import status
+
 
 
 # All Cateogries
@@ -45,8 +49,18 @@ class ProductCreateAPIView(APIView):
     def post(self, request):
         serializer = ProductSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
-            serializer.save(seller=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            product = serializer.save(seller=request.user)
+
+            followed_users = SellerFollow.objects.all()
+
+            for seller_follow in followed_users:
+                user = seller_follow.follower.user_profile.user
+                message = f"{product.name} has been added to {request.user.username}'s shop"
+                notification = Notification.objects.create(user=user, message=message, notification_type="for_seller")
+
+
+            response_serializer = ProductSerializer(product)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

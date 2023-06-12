@@ -1,14 +1,14 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from shop.models import Product
+from shop.models import Product, SellerFollow
 from buyer.models import Cart
 from .serializers import CartSerializer
 from shop.serializers import ProductSerializer
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from shop.decorators import seller_required, buyer_required
-
-
+from django.shortcuts import get_object_or_404
+from account.models import BuyerProfile, SellerProfile, Notification
 
 class ProductListAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -56,3 +56,33 @@ class CartView(APIView):
 
         serializer = CartSerializer(cart)
         return Response(serializer.data)
+
+class FollowSellerView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, seller_id):
+        buyer_profile = get_object_or_404(BuyerProfile, user_profile__user=request.user)
+        seller = get_object_or_404(SellerProfile, id=seller_id)
+
+        if SellerFollow.objects.filter(follower=buyer_profile, seller=seller).exists():
+            return Response({'message': 'You are already following this seller.'})
+
+        follow = SellerFollow(follower=buyer_profile, seller=seller)
+        follow.save()
+
+        message = f'{buyer_profile.user_profile.user.username} started following you.'
+        notification = Notification(user=seller.user_profile.user, message=message, notification_type='for_seller')
+        notification.save()
+
+        return Response({'message': 'You are now following the seller.'})
+
+    def delete(self, request, seller_id):
+        buyer_profile = get_object_or_404(BuyerProfile, user_profile__user=request.user)
+        seller = get_object_or_404(SellerProfile, id=seller_id)
+
+        follow = SellerFollow.objects.filter(follower=buyer_profile, seller=seller).first()
+        if not follow:
+            return Response({'message': 'You are not following this seller.'})
+
+        follow.delete()
+        return Response({'message': 'You have unfollowed the seller.'})

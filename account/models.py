@@ -25,3 +25,21 @@ class BuyerProfile(models.Model):
 
     def __str__(self):
         return self.user_profile.user.username
+
+class Notification(models.Model):
+    FOR_BUYER = 'for_buyer'
+    FOR_SELLER = 'for_seller'
+
+    NOTIFICATION_TYPES = [
+        (FOR_BUYER, 'For Buyer'),
+        (FOR_SELLER, 'For Seller'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.notification_type}"

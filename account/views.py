@@ -3,8 +3,8 @@ import string
 from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.http import JsonResponse
-from account.models import UserProfile, SellerProfile, BuyerProfile
-from account.serializers import UserSerializer
+from account.models import UserProfile, SellerProfile, BuyerProfile, Notification
+from account.serializers import UserSerializer, NotificationSerializer
 from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.views import APIView
@@ -121,4 +121,17 @@ def send_otp_email(email, otp):
     from_email = settings.DEFAULT_FROM_EMAIL
     recipient_list = [email]
     send_mail(subject, message, from_email, recipient_list)
+
+
+
+class NotificationListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        notifications = Notification.objects.filter(user=user)
+        user_type = 'buyer' if hasattr(user, 'buyerprofile') else 'seller'
+        notifications = notifications.filter(notification_type=f'for_{user_type}')
+        serializer = NotificationSerializer(notifications, many=True)
+        return Response(serializer.data)
 

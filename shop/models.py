@@ -16,3 +16,16 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class SellerFollow(models.Model):
+    follower = models.ForeignKey('account.BuyerProfile', on_delete=models.CASCADE, related_name='follower')
+    seller = models.ForeignKey('account.SellerProfile', on_delete=models.CASCADE, related_name='seller')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['follower', 'seller']
+
+    def __str__(self):
+        return f"{self.follower.username} follows {self.seller.user_profile.user.username}"
+
