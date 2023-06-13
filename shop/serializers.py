@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from shop.models import Category, Product
+from shop.models import Category, Product, SellerFollow
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -26,3 +26,10 @@ class ProductSerializer(serializers.ModelSerializer):
         instance.description = validated_data.get('description', instance.description)
         instance.save()
         return instance
+
+class SellerFollowSerializer(serializers.ModelSerializer):
+    follower = serializers.StringRelatedField()
+
+    class Meta:
+        model = SellerFollow
+        fields = ['id', 'seller', 'follower']

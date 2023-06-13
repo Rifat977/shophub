@@ -5,11 +5,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from shop.models import Category, Product
 from buyer.models import Invoice
-from account.models import Notification, UserProfile
+from account.models import Notification, UserProfile, SellerProfile
 from .models import SellerFollow
 from buyer.serializers import InvoiceSerializer
-from shop.serializers import CategorySerializer, ProductSerializer
+from shop.serializers import CategorySerializer, ProductSerializer, SellerFollowSerializer
 from .decorators import seller_required, buyer_required
+from django.shortcuts import get_object_or_404
+
 
 # All Cateogries
 class CategoryListAPIView(APIView):
@@ -133,3 +135,15 @@ class ChangeToBuyerModeAPIView(APIView):
         user_profile.save()
 
         return Response({"message": "Your current mode has been changed."})
+
+
+class SellerFollowersAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @seller_required
+    def get(self, request):
+        seller_profile = get_object_or_404(SellerProfile, user_profile__user=request.user)
+
+        followers = SellerFollow.objects.filter(seller=seller_profile)
+        serializer = SellerFollowSerializer(followers, many=True)
+        return Response(serializer.data)
