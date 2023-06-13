@@ -18,7 +18,7 @@ def buyer_required(view_func):
     def wrapper(self, request, *args, **kwargs):
         user = self.request.user
         try:
-            buyer_profile = BuyerProfile.objects.get(user_profile__user=user)
+            buyer_profile = BuyerProfile.objects.get(user_profile__user=user, user_profile__current_mode="buyer")
         except BuyerProfile.DoesNotExist:
             return HttpResponseForbidden("You must be a buyer to access this page.")
         return view_func(self, request, *args, **kwargs)

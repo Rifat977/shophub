@@ -56,10 +56,12 @@ def seller_registration(request):
     serializer = UserSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
-        profile = UserProfile(user=user, current_mode=seller)
+        profile = UserProfile(user=user, current_mode="seller")
         profile.save()
         seller = SellerProfile(user_profile=profile)
         seller.save()
+        buyer = BuyerProfile(user_profile=profile)
+        buyer.save()
 
         otp = generate_otp()
         send_otp_email(user.email, otp)
@@ -75,7 +77,7 @@ def buyer_registration(request):
     serializer = UserSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
-        profile = UserProfile(user=user, current_mode=buyer)
+        profile = UserProfile(user=user, current_mode="buyer")
         profile.save()
         buyer = BuyerProfile(user_profile=profile)
         buyer.save()

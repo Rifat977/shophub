@@ -99,6 +99,8 @@ class FollowSellerView(APIView):
 # product order
 class ProductListAPIView(APIView):
     permission_classes = [IsAuthenticated]
+
+    @buyer_required
     def get(self, request):
         products = Product.objects.all()
         serializer = ProductSerializer(products, many=True)

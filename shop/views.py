@@ -1,15 +1,15 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from shop.models import Category, Product
-from shop.serializers import CategorySerializer, ProductSerializer
-from rest_framework.permissions import IsAuthenticated
-from .decorators import seller_required, buyer_required
 from rest_framework.generics import RetrieveAPIView
-from .models import SellerFollow
-from account.models import Notification
+from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
+from shop.models import Category, Product
 from buyer.models import Invoice
+from account.models import Notification, UserProfile
+from .models import SellerFollow
 from buyer.serializers import InvoiceSerializer
+from shop.serializers import CategorySerializer, ProductSerializer
+from .decorators import seller_required, buyer_required
 
 # All Cateogries
 class CategoryListAPIView(APIView):
@@ -114,3 +114,22 @@ class InvoiceDetailAPIView(APIView):
 
         serializer = InvoiceSerializer(invoice)
         return Response(serializer.data)
+
+class ChangeToBuyerModeAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @seller_required
+    def post(self, request):
+        try:
+            user_profile = UserProfile.objects.get(user=request.user)
+        except UserProfile.DoesNotExist:
+            raise NotFound("User not found")
+
+        if user_profile.current_mode == "buyer":
+            user_profile.current_mode = "seller"
+        else:
+            user_profile.current_mode = "buyer"
+
+        user_profile.save()
+
+        return Response({"message": "Your current mode has been changed."})

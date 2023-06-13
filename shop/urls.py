@@ -11,4 +11,6 @@ urlpatterns = [
     path('orders/', InvoiceListAPIView.as_view(), name='invoice-list'),
     path('orders/<int:pk>/', InvoiceDetailAPIView.as_view(), name='invoice-detail'),
 
+    path('change-mode/', ChangeToBuyerModeAPIView.as_view(), name='change-mode'),
+
 ]
