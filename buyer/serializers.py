@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from shop.serializers import ProductSerializer
-from buyer.models import Cart
+from buyer.models import Cart, Invoice
 
 class CartSerializer(serializers.ModelSerializer):
     products = ProductSerializer(many=True)
@@ -23,3 +23,12 @@ class CartSerializer(serializers.ModelSerializer):
         instance.save()
         instance.products.set(products_data)
         return instance
+
+class InvoiceSerializer(serializers.ModelSerializer):
+    purchases = serializers.StringRelatedField(many=True)
+
+    class Meta:
+        model = Invoice
+        fields = ['id', 'invoice_id', 'buyer', 'seller', 'payment_intent_id', 'purchase_date', 'address', 'status', 'total_price', 'purchases']
+        read_only_fields = ['id', 'invoice_id', 'buyer', 'seller', 'payment_intent_id', 'purchase_date', 'status', 'total_price', 'purchases']
+

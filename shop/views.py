@@ -8,8 +8,8 @@ from rest_framework.generics import RetrieveAPIView
 from .models import SellerFollow
 from account.models import Notification
 from rest_framework import status
-
-
+from buyer.models import Invoice
+from buyer.serializers import InvoiceSerializer
 
 # All Cateogries
 class CategoryListAPIView(APIView):
@@ -92,3 +92,25 @@ class ProductUD(APIView):
         product = self.get_object(pk)
         product.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+class InvoiceListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @seller_required
+    def get(self, request):
+        invoices = Invoice.objects.filter(seller=request.user)
+        serializer = InvoiceSerializer(invoices, many=True)
+        return Response(serializer.data)
+
+class InvoiceDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @seller_required
+    def get(self, request, pk):
+        try:
+            invoice = Invoice.objects.get(pk=pk, seller=request.user)
+        except Invoice.DoesNotExist:
+            raise NotFound("Invoice not found")
+
+        serializer = InvoiceSerializer(invoice)
+        return Response(serializer.data)

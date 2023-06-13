@@ -2,13 +2,21 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from shop.models import Product, SellerFollow
 from buyer.models import Cart
-from .serializers import CartSerializer
+from .serializers import CartSerializer, InvoiceSerializer
 from shop.serializers import ProductSerializer
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from shop.decorators import seller_required, buyer_required
-from django.shortcuts import get_object_or_404
 from account.models import BuyerProfile, SellerProfile, Notification
+from .models import Invoice, Purchase, Cart
+from django.shortcuts import get_object_or_404
+import stripe
+from stripe.error import StripeError
+from rest_framework.exceptions import APIException
+import uuid
+
+stripe.api_key = 'rk_test_51NIYblLZhXDvAtyNAM1wqEffqzn0uY0T2OtaaKUR1wZ4h6EwZ2dWUAbsiQIhQcFdUaPw742ioHcBbVS3BRJWWlQV00RPyOTRNZ'
+
 
 class ProductListAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -86,3 +94,118 @@ class FollowSellerView(APIView):
 
         follow.delete()
         return Response({'message': 'You have unfollowed the seller.'})
+
+
+# product order
+class ProductListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request):
+        products = Product.objects.all()
+        serializer = ProductSerializer(products, many=True)
+        return Response(serializer.data)
+
+
+
+class ProductPurchaseAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @buyer_required
+    def post(self, request):
+        address = request.data.get('address', '')
+        payment_method = request.data.get('payment_method')
+
+        if not payment_method:
+            raise APIException('Payment method is required.')
+
+        try:
+            cart = Cart.objects.get(user=request.user)
+
+            if not cart.products.exists():
+                raise APIException('No items in the cart.')
+
+            purchases = []
+            total_price = 0
+
+            for product in cart.products.all():
+                purchase = Purchase(product=product, price=product.price, buyer=request.user)
+                purchase.save()
+                purchases.append(purchase)
+                total_price += product.price
+
+            invoice_id = uuid.uuid4().hex.upper()[:10]
+            invoice = Invoice(buyer=request.user, invoice_id=invoice_id, total_price=total_price, address=address)
+
+            seller = cart.products.first().seller
+            invoice.seller = seller
+            invoice.save()
+            invoice.purchases.set(purchases)
+
+            payment_intent = stripe.PaymentIntent.create(
+                amount=int(total_price * 100),
+                currency='usd',
+                payment_method=payment_method,
+                confirm=True
+            )
+
+            invoice.payment_intent_id = payment_intent.id
+            invoice.save()
+
+            cart.products.clear()
+
+            serializer = InvoiceSerializer(invoice)
+            return Response(serializer.data)
+
+        except Cart.DoesNotExist:
+            raise APIException('Cart does not exist.')
+        except StripeError as e:
+            error_message = str(e)
+            raise APIException(error_message)
+
+
+class ProductOrderAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @buyer_required
+    def post(self, request, pk):
+        invoice = get_object_or_404(Invoice, id=pk)
+        payment_method = request.data.get('payment_method')
+
+        if not payment_method:
+            raise APIException('Payment method is required.')
+
+        try:
+            payment_intent = stripe.PaymentIntent.confirm(
+                invoice.payment_intent_id,
+                payment_method=payment_method
+            )
+
+            if payment_intent.status == 'succeeded':
+                invoice.status = 'paid'
+            else:
+                invoice.status = 'failed'
+            invoice.save()
+
+            serializer = InvoiceSerializer(invoice)
+            return Response(serializer.data)
+
+        except StripeError as e:
+            error_message = str(e)
+            raise APIException(error_message)
+
+class OrderListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @buyer_required
+    def get(self, request):
+        invoices = Invoice.objects.filter(buyer=self.request.user)
+        serializer = InvoiceSerializer(invoices, many=True)
+        return Response(serializer.data)
+
+class InvoiceDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @buyer_required
+    def get(self, request, pk):
+        invoice = get_object_or_404(Invoice, pk=pk, buyer=request.user)
+        serializer = InvoiceSerializer(invoice)
+        return Response(serializer.data)
