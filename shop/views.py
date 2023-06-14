@@ -4,11 +4,11 @@ from rest_framework.generics import RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import APIException
 from rest_framework import status
-from shop.models import Category, Product, Invitation
+from shop.models import *
 from buyer.models import Invoice
 from account.models import Notification, UserProfile, SellerProfile
 from .models import SellerFollow
-from buyer.serializers import InvoiceSerializer
+from buyer.serializers import InvoiceSerializer, BuyerReviewSerializer
 from shop.serializers import CategorySerializer, ProductSerializer, SellerFollowSerializer, InvitationSerializer
 from account.serializers import UserSerializer
 from .decorators import seller_required, buyer_required
@@ -154,6 +154,7 @@ class SellerFollowersAPIView(APIView):
 class InvitationListAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @seller_required
     def get(self, request):
         sender = SellerProfile.objects.get(user_profile__user=request.user)
         invitations_sent = Invitation.objects.filter(sender=sender)
@@ -164,6 +165,7 @@ class InvitationListAPIView(APIView):
 class InvitationDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @seller_required
     def get(self, request, pk):
         invitation = get_object_or_404(Invitation, pk=pk)
         serializer = InvitationSerializer(invitation)
@@ -173,6 +175,7 @@ class InvitationDetailAPIView(APIView):
 class InvitationSendAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @seller_required
     def post(self, request):
         sender_profile = SellerProfile.objects.get(user_profile__user=request.user)
         recipient_username = request.data.get('recipient')
@@ -198,6 +201,7 @@ class InvitationSendAPIView(APIView):
 class AcceptedInvitationsReceiverAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @seller_required
     def get(self, request):
         recipient = SellerProfile.objects.get(user_profile__user=request.user)
         accepted_invitations = Invitation.objects.filter(recipient=recipient, accepted=True)
@@ -209,6 +213,7 @@ class AcceptedInvitationsReceiverAPIView(APIView):
 class AcceptedInvitationsSenderAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @seller_required
     def get(self, request):
         sender = SellerProfile.objects.get(user_profile__user=request.user)
         accepted_invitations = Invitation.objects.filter(sender=sender, accepted=True)
@@ -220,6 +225,7 @@ class AcceptedInvitationsSenderAPIView(APIView):
 class InvitationAcceptAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @seller_required
     def post(self, request):
         recipient_profile = SellerProfile.objects.get(user_profile__user=request.user)
         invitation_id = request.data.get('invitation_id')
@@ -243,3 +249,12 @@ class InvitationAcceptAPIView(APIView):
         invitation.save()
 
         return Response({'message': 'Invitation accepted successfully.'})
+
+class ProductReviewListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @seller_required
+    def get(self, request, product_id):
+        reviews = BuyerReview.objects.filter(product_id=product_id)
+        serializer = BuyerReviewSerializer(reviews, many=True)
+        return Response(serializer.data)

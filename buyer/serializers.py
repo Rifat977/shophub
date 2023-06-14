@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from shop.serializers import ProductSerializer
 from buyer.models import Cart, Invoice
+from shop.models import BuyerReview
 
 class CartSerializer(serializers.ModelSerializer):
     products = ProductSerializer(many=True)
@@ -32,3 +33,9 @@ class InvoiceSerializer(serializers.ModelSerializer):
         fields = ['id', 'invoice_id', 'buyer', 'seller', 'payment_intent_id', 'purchase_date', 'address', 'status', 'total_price', 'purchases']
         read_only_fields = ['id', 'invoice_id', 'buyer', 'seller', 'payment_intent_id', 'purchase_date', 'status', 'total_price', 'purchases']
 
+
+class BuyerReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BuyerReview
+        fields = ('id', 'buyer', 'product', 'rating', 'comment', 'created_at')
+        read_only_fields = ('id', 'buyer', 'product', 'created_at')

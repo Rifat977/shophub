@@ -6,11 +6,12 @@ from rest_framework.response import Response
 from rest_framework.exceptions import APIException
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from shop.models import Product, SellerFollow
+from rest_framework.exceptions import PermissionDenied
+from shop.models import Product, SellerFollow, BuyerReview
 from buyer.models import Cart
 from .models import Invoice, Purchase, Cart
 from account.models import BuyerProfile, SellerProfile, Notification
-from .serializers import CartSerializer, InvoiceSerializer
+from .serializers import CartSerializer, InvoiceSerializer, BuyerReviewSerializer
 from shop.serializers import ProductSerializer
 from shop.decorators import seller_required, buyer_required
 from django.shortcuts import get_object_or_404
@@ -212,3 +213,35 @@ class InvoiceDetailAPIView(APIView):
         invoice = get_object_or_404(Invoice, pk=pk, buyer=request.user)
         serializer = InvoiceSerializer(invoice)
         return Response(serializer.data)
+
+class BuyerReviewCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @buyer_required
+    def post(self, request):
+        product_id = request.data.get('product_id')
+        rating = request.data.get('rating')
+        comment = request.data.get('comment')
+
+        try:
+            product = Product.objects.get(id=product_id)
+        except Product.DoesNotExist:
+            raise NotFound('Product not found.')
+
+        if not Purchase.objects.filter(product=product, buyer=request.user).exists():
+            raise PermissionDenied("You can only review products you have purchased.")
+
+        existing_review = BuyerReview.objects.filter(buyer=request.user, product=product).first()
+        if existing_review:
+            raise PermissionDenied("You have already reviewed this product.")
+
+        review = BuyerReview(
+            buyer=request.user,
+            product=product,
+            rating=rating,
+            comment=comment
+        )
+        review.save()
+
+        serializer = BuyerReviewSerializer(review)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

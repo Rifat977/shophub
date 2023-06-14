@@ -23,5 +23,7 @@ urlpatterns = [
     path('invitations/received/accepted/', AcceptedInvitationsReceiverAPIView.as_view(), name='accepted-list-receiveds'),
     path('invitations/accept/', InvitationAcceptAPIView.as_view(), name='invitation-send'),
     
+    path('product/<int:product_id>/reviews/', ProductReviewListAPIView.as_view(), name='product-reviews'),
+
 
 ]
