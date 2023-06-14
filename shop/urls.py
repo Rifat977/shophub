@@ -14,4 +14,14 @@ urlpatterns = [
     path('change-mode/', ChangeToBuyerModeAPIView.as_view(), name='change-mode'),
     path('followers/', SellerFollowersAPIView.as_view(), name='followers'),
 
+    path('invitations/', InvitationListAPIView.as_view(), name='invitation-list'), # invitations send list
+    path('invitations/<int:pk>/', InvitationDetailAPIView.as_view(), name='invitation-detail'), # single invitation
+    path('invitations/send/', InvitationSendAPIView.as_view(), name='invitation-send'), # send invitation
+    path('invitations/sends/accepted/', AcceptedInvitationsSenderAPIView.as_view(), name='accepted-list-sends'),
+
+    # Accepted receiver
+    path('invitations/received/accepted/', AcceptedInvitationsReceiverAPIView.as_view(), name='accepted-list-receiveds'),
+    path('invitations/accept/', InvitationAcceptAPIView.as_view(), name='invitation-send'),
+    
+
 ]

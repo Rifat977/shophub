@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from shop.models import Category, Product, SellerFollow
+from shop.models import Category, Product, SellerFollow, Invitation
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -33,3 +33,13 @@ class SellerFollowSerializer(serializers.ModelSerializer):
     class Meta:
         model = SellerFollow
         fields = ['id', 'seller', 'follower']
+
+
+class InvitationSerializer(serializers.ModelSerializer):
+    sender = serializers.ReadOnlyField(source='sender.user.username')
+    recipient = serializers.ReadOnlyField(source='recipient.user.username')
+
+    class Meta:
+        model = Invitation
+        fields = ['id', 'sender', 'recipient', 'created_at', 'accepted']
+

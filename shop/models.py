@@ -29,3 +29,12 @@ class SellerFollow(models.Model):
     def __str__(self):
         return f"{self.follower.username} follows {self.seller.user_profile.user.username}"
 
+
+class Invitation(models.Model):
+    sender = models.ForeignKey('account.SellerProfile', on_delete=models.CASCADE, related_name='invitations_sent')
+    recipient = models.ForeignKey('account.SellerProfile', on_delete=models.CASCADE, related_name='invitations_received')
+    created_at = models.DateTimeField(auto_now_add=True)
+    accepted = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f'Invitation from {self.sender.user_profile.user.username} to {self.recipient.user_profile.user.username}'

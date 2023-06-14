@@ -2,13 +2,15 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.generics import RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import APIException
 from rest_framework import status
-from shop.models import Category, Product
+from shop.models import Category, Product, Invitation
 from buyer.models import Invoice
 from account.models import Notification, UserProfile, SellerProfile
 from .models import SellerFollow
 from buyer.serializers import InvoiceSerializer
-from shop.serializers import CategorySerializer, ProductSerializer, SellerFollowSerializer
+from shop.serializers import CategorySerializer, ProductSerializer, SellerFollowSerializer, InvitationSerializer
+from account.serializers import UserSerializer
 from .decorators import seller_required, buyer_required
 from django.shortcuts import get_object_or_404
 
@@ -147,3 +149,97 @@ class SellerFollowersAPIView(APIView):
         followers = SellerFollow.objects.filter(seller=seller_profile)
         serializer = SellerFollowSerializer(followers, many=True)
         return Response(serializer.data)
+
+# invited seller
+class InvitationListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        sender = SellerProfile.objects.get(user_profile__user=request.user)
+        invitations_sent = Invitation.objects.filter(sender=sender)
+        serializer = InvitationSerializer(invitations_sent, many=True)
+        return Response(serializer.data)
+
+# invitation detail
+class InvitationDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        invitation = get_object_or_404(Invitation, pk=pk)
+        serializer = InvitationSerializer(invitation)
+        return Response(serializer.data)
+
+# send invitation
+class InvitationSendAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        sender_profile = SellerProfile.objects.get(user_profile__user=request.user)
+        recipient_username = request.data.get('recipient')
+
+        if not recipient_username:
+            raise APIException('Recipient username is required.')
+
+        try:
+            recipient_profile = SellerProfile.objects.get(user_profile__user__username=recipient_username)
+        except SellerProfile.DoesNotExist:
+            raise APIException('Recipient seller not found.')
+
+        if Invitation.objects.filter(sender=sender_profile, recipient=recipient_profile).exists():
+            raise APIException('Invitation already sent to this recipient.')
+
+        invitation = Invitation(sender=sender_profile, recipient=recipient_profile)
+        invitation.save()
+
+        serializer = InvitationSerializer(invitation)
+        return Response(serializer.data)
+
+# accepted invtation (receiver)
+class AcceptedInvitationsReceiverAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        recipient = SellerProfile.objects.get(user_profile__user=request.user)
+        accepted_invitations = Invitation.objects.filter(recipient=recipient, accepted=True)
+        senders = [invitation.sender.user_profile.user for invitation in accepted_invitations]
+        serializer = UserSerializer(senders, many=True)
+        return Response(serializer.data)
+
+# accepted invtations List (Sender)
+class AcceptedInvitationsSenderAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        sender = SellerProfile.objects.get(user_profile__user=request.user)
+        accepted_invitations = Invitation.objects.filter(sender=sender, accepted=True)
+        receivers = [invitation.recipient.user_profile.user for invitation in accepted_invitations]
+        serializer = UserSerializer(receivers, many=True)
+        return Response(serializer.data)
+
+# accept invite
+class InvitationAcceptAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        recipient_profile = SellerProfile.objects.get(user_profile__user=request.user)
+        invitation_id = request.data.get('invitation_id')
+
+        if not invitation_id:
+            raise APIException('Invitation ID is required.')
+
+        try:
+            invitation = Invitation.objects.get(id=invitation_id, recipient=recipient_profile)
+        except Invitation.DoesNotExist:
+            raise APIException('Invitation not found.')
+
+        if invitation.accepted:
+            raise APIException('Invitation already accepted.')
+
+        sender_profile = invitation.sender
+        recipient_profile.invited_sellers.remove(sender_profile)
+        recipient_profile.save()
+
+        invitation.accepted = True
+        invitation.save()
+
+        return Response({'message': 'Invitation accepted successfully.'})
