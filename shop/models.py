@@ -27,7 +27,7 @@ class SellerFollow(models.Model):
         unique_together = ['follower', 'seller']
 
     def __str__(self):
-        return f"{self.follower.username} follows {self.seller.user_profile.user.username}"
+        return f"{self.follower.user_profile.user.username} follows {self.seller.user_profile.user.username}"
 
 
 class Invitation(models.Model):

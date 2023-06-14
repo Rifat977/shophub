@@ -114,7 +114,7 @@ class InvoiceDetailAPIView(APIView):
         try:
             invoice = Invoice.objects.get(pk=pk, seller=request.user)
         except Invoice.DoesNotExist:
-            raise NotFound("Invoice not found")
+            raise APIException("Order not found")
 
         serializer = InvoiceSerializer(invoice)
         return Response(serializer.data)
